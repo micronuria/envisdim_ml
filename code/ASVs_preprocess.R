@@ -1,10 +1,18 @@
-
+###########################
 # DATA PREPROCESS
+##########################
+
+
 library(tidyverse)
 
 
 # load ASVs count raw data
-read_tsv("raw_data/.tsv")
+read_tsv("raw_data/asvs_raw_counts.tsv", 
+         col_types = cols(sample = col_character(),
+                          .default = col_integer())) 
+
+%>% 
+  pivot_longer()
 
 
 
