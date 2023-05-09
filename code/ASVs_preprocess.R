@@ -42,7 +42,7 @@ composite <- inner_join(all_asv, taxonomy, by = "asv") %>%
   mutate(rel_abun = count / sum(count)) %>% 
   ungroup() %>%                                         # get rid of grouping structure on data
   select(-count) %>%                                    # get rid of count column
-  inner_join(., chlclass, by="sample")                  # add data about chlorophill groups
+  inner_join(., chlclass, by="sample")                  # add data about chlorophyll groups
 
 ##### add metadata!!!
 
