@@ -20,7 +20,7 @@
 #
 #  3 - Loads chlorophyll based sample groups.
 # 
-#  4 - Adds campaign and event-campaign categorical variables.
+#  4 - Adds campaign, event-campaign and season categorical variables.
 #---------------------------------------------
 
 ###########################################
@@ -67,9 +67,18 @@ met_raw_dim <- read_tsv("raw_data/metadata_corrected_dim.tsv") %>%
   mutate(st = 3) %>%  # Add station data
   select(sample, st, year, month, depth)
 
-# join both metadata tables
-met_raw <- bind_rows(met_raw_dim, met_raw_env)
-
+# join both metadata tables and add season and 
+# depth level categorical variables
+met_raw <- bind_rows(met_raw_dim, met_raw_env) %>%
+  mutate(season = case_when(month %in% c('Jan', 'Feb','Mar') ~'Winter',
+                            month %in% c('Apr','May','Jun') ~ 'Spring',
+                            month %in% c('Jul','Aug','Sep') ~'Summer',
+                            TRUE ~ 'Fall')) %>%
+  mutate(depth_lev = case_when(depth %in% c('5','8','10','15','20','25','30') ~ 'surface',
+                               depth %in% c('40','50','55') ~ 'intermediate',
+                               depth %in% c('60', '70', '75', '80', '85', 
+                                            '90', '100', '110', '125', '130',
+                                            '150', '160', '200') ~ 'deep'))
 
 ###########################################
 # Load Chlorophyll groups
@@ -96,14 +105,13 @@ chlclass <- chlclass %>%
   mutate(
     campaign = case_when(
       str_detect(sample, 'ENV')  ~ 'envision',
-      TRUE ~ 'dimension') %>%
+      TRUE ~ 'dimension')) %>%
     mutate(
     gr_event = case_when(
       str_detect(sample, 'ENV') & event == 'bloom' ~ 'bloom_env',
       str_detect(sample, 'ENV') & event == 'normal' ~ 'normal_env',
       str_detect(sample, 'DIM') & event == 'bloom' ~ 'bloom_dim',
-      TRUE ~ 'normal_dim')) 
-  )
+      TRUE ~ 'normal_dim'))
 
 # Check number of cases on normal and bloom categories 
 # by campaign 
@@ -127,6 +135,5 @@ chlclass %>%
 rm(list = c("met_raw_dim", "met_raw_env"))
 # Save objects
 save(list = ls(), file = "processed_data/initial_preprocess.RData")
-
 
 
