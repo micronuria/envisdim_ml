@@ -1,5 +1,25 @@
+
+# Author: Nuria Fernández-Gonzalez
+# Date: 29-05-2023
+
 ############################################
+#
 # Write data tables from DADA2 results
+#
+############################################
+
+#---------------------------------------------
+# Description:
+# This script prepares DADA2 results to work with R
+#  - separates ASVs sequences and count reads data
+#  - creates ASVs names
+#  - Remove data from not Prokaryotic species: Eukaryota, Chloroplast and 
+#    Mitochondria.
+#---------------------------------------------
+
+
+############################################
+# Prepare DADA2 results 
 ############################################
 
 # load DADA2 results
@@ -20,11 +40,15 @@ asvs_seqs <- asvs_seqs[,c("asv","seq")]
 asvs_raw$sample <- rownames(asvs_raw)
 asvs_raw <- asvs_raw[, c(ncol(asvs_raw), 2:ncol(asvs_raw)-1)]
 
-# taxonomy
+# Load taxonomy
 taxonomy <- as.data.frame(taxa.sp.print)
 taxonomy$asv <- names(asvs_raw)[2:ncol(asvs_raw)]
 
+
+##########################################################
 # Clean data of Eukaryotes, Chloroplasts and Mitochondria
+##########################################################
+
 # Check where they are in the taxonomy
 lapply(taxonomy, function(x){grep("Eukaryota", x)})
 # 
@@ -120,7 +144,7 @@ lapply(taxonomy, function(x){grep("Mitochondria", x)})
 # integer(0)
 
 
-# how many
+# Count how many not prokariotic ASVs there are:
 length(grep("Eukaryota", taxonomy$Kingdom))
 #[1] 5
 length(grep("Chloroplast", taxonomy$Order))
@@ -130,7 +154,6 @@ length(grep("Mitochondria", taxonomy$Family))
 
 # Get asvs to remove
 toremove <- subset(taxonomy, Kingdom == "Eukaryota" | Order == "Chloroplast" | Family == "Mitochondria")$asv
-
 
 # filter all tables
 asvs_raw <- subset(asvs_raw, select = names(asvs_raw)[!(names(asvs_raw) %in% toremove)])
