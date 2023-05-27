@@ -5,18 +5,16 @@
 ###########################################
 #
 # DATA PREPROCESS
-# grouping ASVs to clusters
+# ASVs to clusters
 #
 ###########################################
 
 #---------------------------------------------
 # Description. This script:
-# 1 - Groups ASVs at Genus level making clusters,
-#     reducing biological features from 1,193 to 688.
-#     The best taxonomic classification for each cluster
-#     is kept even for clusters where genus was not 
-#     determined.
-# 2 - Performs clusters data exploration
+# 1 - Filters ASVs with mean relative abundances < 0.01%
+#     that reduces ASVs from 7,569 to 1,193
+# 2 - Formats taxonomy and adds metadata
+# 3 - Performs ASVs data exploration
 #---------------------------------------------
 
 ############################################
@@ -27,36 +25,59 @@ library(tidyverse)
 library(vegan)
 library(RColorBrewer)
 
-
-library(tictoc)
-library(future)
-library(doFuture)
-library(future.apply)
-
 set.seed(20210401)
 
 load("processed_data/initial_preprocess.RData")
 
+
+##############################
+# pre-filter ASVs
+##############################
+
+# Revome low abundance ASVS (below 0.01%)
+filtered_asv <- all_asv %>%
+  group_by(sample) %>%                                 
+  mutate(rel_abun = count / sum(count)) %>% 
+  ungroup() %>%                                         
+  select(-count) %>%
+  pivot_wider(names_from = sample, values_from = rel_abun) %>%
+  rowwise %>%
+  mutate(mean = mean(c_across(c(DIMProk1,ENVProk178))))%>%
+  filter(mean > 0.0001) %>% 
+  select(-mean) %>%
+  pivot_longer(!asv, names_to = "sample", values_to="rel_abun")
+
+
 ############################################
-# Group data to Genus level
+# Format taxonomic assignment to ASVs
 ############################################
 
-# Group taxonomy to filter data and format taxonomy
-# to get the last taxonomic level assignment.
-taxonomy <- tax_raw %>%
-  select(asv, Kingdom, Phylum, Class, Order, Family, Genus) %>%
-  unite("taxonomy", Kingdom:Genus, sep = ";", remove = TRUE) %>%
-  mutate(taxonomy = str_replace(taxonomy, ";NA","_unclassified"),
-         taxonomy = str_replace_all(taxonomy, ";NA", ""),
-         taxonomy = str_replace_all(taxonomy, ".*;", ""))
+#  format taxonomy to get the last taxonomic level assignment.
+tax_asvs <- tax_raw %>%
+  filter(asv %in% unique(filtered_asv$asv)) %>%
+   unite("taxonomy", Kingdom:Species, sep = ";", remove = TRUE) %>%
+   mutate(taxonomy = str_replace_all(taxonomy, "NA","unclassified"))
 
-# join count data, taxonomy, metadata, chlorophyll groups 
-# and change some variables to factors
-clusters_count <- inner_join(all_asv, taxonomy, by = "asv") %>%
-  group_by(sample, taxonomy) %>%                        # group by genus
-  summarize(count = sum(count), .groups="drop") %>%     # get rid of count column
-  inner_join(., chlclass, by="sample") %>%              # add data about chlorophyll groups
-  inner_join(., met_raw) %>%
+# join asvs count data, metadata, chlorophyll groups 
+# and change some variables to factors.
+# Not adding taxonomy as it produces problems with pivot_wider
+
+# relative abuncances
+asvs_ra <- inner_join(filtered_asv, chlclass, by="sample")  %>%              
+   inner_join(., met_raw, by="sample") %>%
+   mutate(gr_event = as.factor(gr_event),
+         campaign = as.factor(campaign),
+         st = as.factor(st),
+         year = as.factor(year),
+         month = as.factor(month),
+         season = as.factor(season),
+         depth_lev = as.factor(depth_lev))
+
+# with count data
+asvs_co <- all_asv %>%
+  filter(asv %in% unique(filtered_asv$asv)) %>%
+  inner_join(., chlclass, by="sample")  %>%
+  inner_join(., met_raw, by="sample") %>%
   mutate(gr_event = as.factor(gr_event),
          campaign = as.factor(campaign),
          st = as.factor(st),
@@ -65,51 +86,46 @@ clusters_count <- inner_join(all_asv, taxonomy, by = "asv") %>%
          season = as.factor(season),
          depth_lev = as.factor(depth_lev))
 
-# Calculate relative abundances
-clusters_ra <- clusters_count %>%
-  group_by(sample) %>%                                 
-  mutate(rel_abun = count / sum(count)) %>% 
-  ungroup() %>%                                         
-  select(-count)  
-  
 
 ############################################
-# Clusters exploration
+# ASVs exploration
 ############################################
 
 # -------------------------------
 # Data distribution
 # -------------------------------
 # count data
-pdf(file="results/boxplots/clusters_boxplot_counts.pdf")
-clusters_count %>%
-  ggplot(aes( y=count,x=taxonomy)) +
+pdf(file="results/boxplots/asvs_boxplot_counts.pdf")
+asvs_co %>%
+  ggplot(aes( y=count,x=asv)) +
   geom_boxplot(outlier.size = 0.4) +
-  xlab("Cluster") +
+  xlab("ASV") +
   theme(axis.text.x = element_blank()) +
   facet_wrap(~campaign)
 dev.off()
 
+
 # relative abundance data
-pdf(file="results/boxplots/clusters_boxplot_ra.pdf")
-clusters_ra %>%
-  ggplot(aes(y=rel_abun, x=taxonomy)) +
+pdf(file="results/boxplots/asvs_boxplots_relab.pdf")
+asvs_ra %>%
+  ggplot(aes(y=rel_abun, x=asv)) +
   geom_boxplot(outlier.size = 0.4) +
-  xlab("Cluster") +
+  xlab("ASV") +
   theme(axis.text.x = element_blank()) +
   facet_wrap(~campaign)
 dev.off()
+
 
 # ---------------------------------------
 # Ordination analysis - NMDS
 # ---------------------------------------
 
 # to wide format
-clusters_co_wide <- clusters_count %>%
-  pivot_wider(names_from = taxonomy, values_from = count)
+asvs_co_wide <- asvs_co %>%
+  pivot_wider(names_from = asv, values_from = count)
 
-clusters_ra_wide <- clusters_ra %>%
-  pivot_wider(names_from = taxonomy, values_from = rel_abun)
+asvs_ra_wide <- asvs_ra %>% 
+  pivot_wider(names_from = asv, values_from = rel_abun)
 
 # define function to plot NMDS results
 # coloring samples with different variables
@@ -197,30 +213,29 @@ myPlot <- function(nmds, df_wide) {
 # ---------------------------------------
 
 # prepare data
-df_genus.co <- clusters_co_wide[,11:ncol(clusters_co_wide)]
-rownames(df_genus.co)<-clusters_co_wide$sample
+df_asvs.co <- asvs_co_wide[,11:ncol(asvs_co_wide)]
+rownames(df_asvs.co)<-asvs_co_wide$sample
 
 # apply robust center log ratio transformation to count data
-df_genus.rclr <- decostand(df_genus.co, "rclr", MARGIN = 1)
+df_asvs.rclr <- decostand(df_asvs.co, "rclr", MARGIN = 1)
 
 # Calculate euclidean distances
-euc.d <- vegdist(df_genus.rclr, method="euclidean")
+euc.d <- vegdist(df_asvs.rclr, method="euclidean")
 
 # Calculate a non-metric multidimensional analysis
-# run in parallel 
 nmds.rclr <- metaMDS(euc.d,
-                try = 500,
-                trymax = 5000,
-                autotransform = FALSE,
-                wascores = TRUE,
-                expand = FALSE)
-
+                     try = 500,
+                     trymax = 1000,
+                     autotransform = FALSE,
+                     wascores = TRUE,
+                     expand = FALSE)
 
 # Explore results
 # ------------------
 nmds.rclr
+
 # Call:
-#   metaMDS(comm = euc.d, try = 500, trymax = 5000, autotransform = FALSE,      wascores = TRUE, expand = FALSE) 
+#   metaMDS(comm = euc.d, try = 500, trymax = 1000, autotransform = FALSE,      wascores = TRUE, expand = FALSE) 
 # 
 # global Multidimensional Scaling using monoMDS
 # 
@@ -228,31 +243,29 @@ nmds.rclr
 # Distance: euclidean 
 # 
 # Dimensions: 2 
-# Stress:     0.1404172 
+# Stress:     0.1579144 
 # Stress type 1, weak ties
-# Best solution was not repeated after 5000 tries
-# The best solution was from try 3708 (random start)
+# Best solution was repeated 3 times in 500 tries
+# The best solution was from try 105 (random start)
 # Scaling: centring, PC rotation 
 # Species: scores missing
 
-
 # NMDS plots
-pdf(file = "results/NMDS_plots/clusters_NMDS_counts.pdf")
-myPlot(nmds.rclr, clusters_co_wide)
+pdf(file="results/NMDS_plots/asvs_NMDS_counts.pdf")
+myPlot(nmds.rclr, asvs_co_wide)
 dev.off()
-
 
 # ---------------------------------------------
 # calculate NMDS - with Bray-Curtis dissimilarities
 # ---------------------------------------------
 
 # prepare data
-df_genus.ra <- clusters_ra_wide[,11:ncol(clusters_ra_wide)]
-rownames(df_genus.ra)<-clusters_ra_wide$sample
+df_asvs.ra <- asvs_ra_wide[,11:ncol(asvs_ra_wide)]
+rownames(df_asvs.ra)<-asvs_ra_wide$sample
 
 
 # Calculate a non-metric multidimensional analysis
-nmds.bc <- metaMDS(df_genus.ra,
+nmds.bc <- metaMDS(df_asvs.ra,
                    distance = "bray",
                    try = 500,
                    trymax = 1000,
@@ -261,36 +274,34 @@ nmds.bc <- metaMDS(df_genus.ra,
                    expand = FALSE)
 
 # Explore results
-# ------------------
 nmds.bc
-# 
 # Call:
-#   metaMDS(comm = df_genus.ra, distance = "bray", try = 500, trymax = 1000,      autotransform = TRUE, wascores = FALSE, expand = FALSE) 
+#   metaMDS(comm = df_asvs.ra, distance = "bray", try = 500, trymax = 1000,      autotransform = TRUE, wascores = FALSE, expand = FALSE) 
 # 
 # global Multidimensional Scaling using monoMDS
 # 
-# Data:     df_genus.ra 
+# Data:     df_asvs.ra 
 # Distance: bray 
 # 
 # Dimensions: 2 
-# Stress:     0.1390277 
+# Stress:     0.1409043 
 # Stress type 1, weak ties
-# Best solution was not repeated after 1000 tries
-# The best solution was from try 744 (random start)
+# Best solution was repeated 2 times in 500 tries
+# The best solution was from try 371 (random start)
 # Scaling: centring, PC rotation, halfchange scaling 
 # Species: scores missing
 
-
-# Plots
-pdf(file = "results/NMDS_plots/clusters_NMDS_ra.pdf")
-myPlot(nmds.bc, clusters_ra_wide)
+# plot
+pdf(file="results/NMDS_plots/asvs_NMDS_ra.pdf")
+myPlot(nmds.bc, asvs_ra_wide)
 dev.off()
 
-############################################
-# Clean environment
-rm(list=c("all_asv", "chlclass","tax_raw","taxonomy", 
-          "df_genus.rclr","euc.d", "nmds.rclr","nmds.bc", "df_genus.co",
-          "df_genus.ra","tax_raw", "taxonomy","met_raw","myPlot"))
+
+###############################
+# clean environment
+rm("filtered_asv","met_raw","chlclass","all_asv","tax_raw",
+   "df_asvs.rclr","euc.d", "nmds.rclr","df_asvs.co", 
+   "df_asvs.ra", "nmds.bc","myPlot")
 
 # Save objects
-save(list=ls(), file="processed_data/clusters_grouping.RData")
+save(list=ls(), file="processed_data/asvs_filtered.RData")

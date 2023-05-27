@@ -41,12 +41,11 @@ library(tidyverse)
 # 3 - Table to long format
 # 4 - Load taxonomy
 
-all_asv <- read_tsv(
-  "raw_data/asvs_raw_counts.tsv",
-  col_types = cols(sample = col_character(),
-                   .default = col_integer())) %>%
-  mutate(sample = str_replace_all(sample, "DIMprok", "DIMProk")) %>% 
-  filter(!(sample == "ENVProk141")) %>% 
+all_asv <- read_tsv("raw_data/asvs_raw_counts.tsv",
+            col_types = cols(sample = col_character(),
+                             .default = col_integer())) %>%
+  mutate(sample = str_replace_all(sample, "DIMprok", "DIMProk")) %>%
+  filter(!(sample == "ENVProk141"))%>% 
   pivot_longer(-sample, names_to = "asv", values_to = "count")
 
 # load taxonomy 

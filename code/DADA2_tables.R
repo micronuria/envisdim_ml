@@ -25,7 +25,7 @@
 # load DADA2 results
 load("raw_data/DADA2_CR30.No_primers.RData")
 
-# transpose count data matrix
+#  count data matrix
 asvs_raw <- as.data.frame(seqtab.nochim)
 
 # separate sequences from count data
