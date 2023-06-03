@@ -5,14 +5,13 @@
 ###########################################
 #
 # DATA PREPROCESS
-# ASVs preprocess - filter by abundance
+# No filtered ASVs 
 #
 ###########################################
 
 #---------------------------------------------
 # Description. This script:
-# 1 - Filters ASVs with mean relative abundances < 0.01%
-#     that reduces ASVs from 7,569 to 1,193
+# no filter ASVs - 7,569 
 # 2 - Formats taxonomy and adds metadata
 # 3 - Performs ASVs data exploration
 #---------------------------------------------
@@ -30,23 +29,6 @@ set.seed(20210401)
 load("processed_data/initial_preprocess.RData")
 
 
-##############################
-# pre-filter ASVs
-##############################
-
-# Revome low abundance ASVS (below 0.01%)
-filtered_asv <- all_asv %>%
-  group_by(sample) %>%                                 
-  mutate(rel_abun = count / sum(count)) %>% 
-  ungroup() %>%                                         
-  select(-count) %>%
-  pivot_wider(names_from = sample, values_from = rel_abun) %>%
-  rowwise %>%
-  mutate(mean = mean(c_across(c(DIMProk1,ENVProk178))))%>%
-  filter(mean > 0.0001) %>% 
-  select(-mean) %>%
-  pivot_longer(!asv, names_to = "sample", values_to="rel_abun")
-
 
 ############################################
 # Format taxonomic assignment to ASVs
@@ -54,7 +36,7 @@ filtered_asv <- all_asv %>%
 
 #  format taxonomy to get the last taxonomic level assignment.
 tax_asvs <- tax_raw %>%
-  filter(asv %in% unique(filtered_asv$asv)) %>%
+  filter(asv %in% unique(all_asv$asv)) %>%
    unite("taxonomy", Kingdom:Species, sep = ";", remove = TRUE) %>%
    mutate(taxonomy = str_replace_all(taxonomy, "NA","unclassified"))
 
@@ -63,7 +45,12 @@ tax_asvs <- tax_raw %>%
 # Not adding taxonomy as it produces problems with pivot_wider
 
 # relative abuncances
-asvs_ra <- inner_join(filtered_asv, chlclass, by="sample")  %>%              
+asvs_ra <- all_asv %>%
+  group_by(sample) %>%                                 
+  mutate(rel_abun = count / sum(count)) %>% 
+  ungroup() %>%                                         
+  select(-count) %>%
+   inner_join(., chlclass, by="sample")  %>%              
    inner_join(., met_raw, by="sample") %>%
    mutate(gr_event = as.factor(gr_event),
          campaign = as.factor(campaign),
@@ -75,7 +62,7 @@ asvs_ra <- inner_join(filtered_asv, chlclass, by="sample")  %>%
 
 # with count data
 asvs_co <- all_asv %>%
-  filter(asv %in% unique(filtered_asv$asv)) %>%
+  filter(asv %in% unique(all_asv$asv)) %>%
   inner_join(., chlclass, by="sample")  %>%
   inner_join(., met_raw, by="sample") %>%
   mutate(gr_event = as.factor(gr_event),
@@ -95,7 +82,7 @@ asvs_co <- all_asv %>%
 # Data distribution
 # -------------------------------
 # count data
-pdf(file="results/boxplots/asvs_boxplot_counts.pdf")
+pdf(file="results/boxplots/asvs_noFilt_boxplot_counts.pdf")
 asvs_co %>%
   ggplot(aes( y=count,x=asv)) +
   geom_boxplot(outlier.size = 0.4) +
@@ -106,7 +93,7 @@ dev.off()
 
 
 # relative abundance data
-pdf(file="results/boxplots/asvs_boxplots_relab.pdf")
+pdf(file="results/boxplots/asvs_noFilt_boxplots_relab.pdf")
 asvs_ra %>%
   ggplot(aes(y=rel_abun, x=asv)) +
   geom_boxplot(outlier.size = 0.4) +
@@ -243,15 +230,15 @@ nmds.rclr
 # Distance: euclidean 
 # 
 # Dimensions: 2 
-# Stress:     0.1579144 
+# Stress:     0.07007113 
 # Stress type 1, weak ties
 # Best solution was repeated 3 times in 500 tries
-# The best solution was from try 105 (random start)
+# The best solution was from try 435 (random start)
 # Scaling: centring, PC rotation 
 # Species: scores missing
 
 # NMDS plots
-pdf(file="results/NMDS_plots/asvs_NMDS_counts.pdf")
+pdf(file="results/NMDS_plots/asvs_noFilt_NMDS_counts.pdf")
 myPlot(nmds.rclr, asvs_co_wide)
 dev.off()
 
@@ -275,6 +262,8 @@ nmds.bc <- metaMDS(df_asvs.ra,
 
 # Explore results
 nmds.bc
+
+
 # Call:
 #   metaMDS(comm = df_asvs.ra, distance = "bray", try = 500, trymax = 1000,      autotransform = TRUE, wascores = FALSE, expand = FALSE) 
 # 
@@ -284,24 +273,24 @@ nmds.bc
 # Distance: bray 
 # 
 # Dimensions: 2 
-# Stress:     0.1409043 
+# Stress:     0.1423387 
 # Stress type 1, weak ties
-# Best solution was repeated 2 times in 500 tries
-# The best solution was from try 371 (random start)
+# Best solution was repeated 3 times in 500 tries
+# The best solution was from try 193 (random start)
 # Scaling: centring, PC rotation, halfchange scaling 
 # Species: scores missing
 
 # plot
-pdf(file="results/NMDS_plots/asvs_NMDS_ra.pdf")
+pdf(file="results/NMDS_plots/asvs_noFilt_NMDS_ra.pdf")
 myPlot(nmds.bc, asvs_ra_wide)
 dev.off()
 
 
 ###############################
 # clean environment
-rm("filtered_asv","met_raw","chlclass","all_asv","tax_raw",
+rm("met_raw","chlclass","all_asv","tax_raw",
    "df_asvs.rclr","euc.d", "nmds.rclr","df_asvs.co", 
    "df_asvs.ra", "nmds.bc","myPlot")
 
 # Save objects
-save(list=ls(), file="processed_data/asvs_filtered.RData")
+save(list=ls(), file="processed_data/asvs_no_filtered.RData")

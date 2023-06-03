@@ -11,9 +11,9 @@
 #---------------------------------------------
 # Description:
 # This script prepares DADA2 results to work with R
-#  - separates ASVs sequences and count reads data
-#  - creates ASVs names
-#  - Remove data from not Prokaryotic species: Eukaryota, Chloroplast and 
+#  - Separates ASVs sequences and count reads data.
+#  - Creates ASVs names.
+#  - Remove data of not Prokaryotic species: Eukaryota, Chloroplast and 
 #    Mitochondria.
 #---------------------------------------------
 
@@ -152,7 +152,7 @@ length(grep("Chloroplast", taxonomy$Order))
 length(grep("Mitochondria", taxonomy$Family))
 #[1] 73
 
-# Get asvs to remove
+# Get ASVs to remove
 toremove <- subset(taxonomy, Kingdom == "Eukaryota" | Order == "Chloroplast" | Family == "Mitochondria")$asv
 
 # filter all tables

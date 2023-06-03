@@ -16,7 +16,10 @@
 #     The best taxonomic classification for each cluster
 #     is kept even for clusters where genus was not 
 #     determined.
-# 2 - Performs clusters data exploration
+# 2 - Add metadata to Clusters
+# 3 - Performs clusters data exploration with 
+#     proportions (relative abundances) and 
+#     rclr transformations.
 #---------------------------------------------
 
 ############################################
@@ -26,7 +29,8 @@
 library(tidyverse)
 library(vegan)
 library(RColorBrewer)
-
+library(viridis)
+library(gplots)
 
 library(tictoc)
 library(future)
@@ -73,14 +77,48 @@ clusters_ra <- clusters_count %>%
   select(-count)  
   
 
+# to wide format
+clusters_co_wide <- clusters_count %>%
+  pivot_wider(names_from = taxonomy, values_from = count)
+
+clusters_ra_wide <- clusters_ra %>%
+  pivot_wider(names_from = taxonomy, values_from = rel_abun)
+
 ############################################
 # Clusters exploration
 ############################################
 
+#--------------------------------------
+#  Search missing values
+#--------------------------------------
+table(is.na(clusters_co_wide))
+# FALSE 
+# 115868  
+
+table(is.na(clusters_ra_wide))
+# FALSE 
+# 115868 
+
+#--------------------------------------
+#  check outcome variable distribution
+#--------------------------------------
+
+clusters_co_wide %>%
+  with(table(event))
+# event
+# bloom normal 
+# 31    135 
+
+clusters_ra_wide %>%
+  with(table(event))
+# event
+# bloom normal 
+# 31    135 
+
 # -------------------------------
 # Data distribution
 # -------------------------------
-# count data
+# Boxplot count data
 pdf(file="results/boxplots/clusters_boxplot_counts.pdf")
 clusters_count %>%
   ggplot(aes( y=count,x=taxonomy)) +
@@ -90,7 +128,7 @@ clusters_count %>%
   facet_wrap(~campaign)
 dev.off()
 
-# relative abundance data
+# Boxplot relative abundance data
 pdf(file="results/boxplots/clusters_boxplot_ra.pdf")
 clusters_ra %>%
   ggplot(aes(y=rel_abun, x=taxonomy)) +
@@ -100,16 +138,36 @@ clusters_ra %>%
   facet_wrap(~campaign)
 dev.off()
 
+# Heatmaps
+colores <- brewer.pal(n = 2, name = "Dark2")
+pdf(file="results/heatmaps/clusters_heatmap_count.pdf")
+gplots::heatmap.2(as.matrix(clusters_co_wide[,11:ncol(clusters_co_wide)]),
+                  main = "Clusters - count data",
+                  xlab = NULL,
+                  dendrogram = "none",
+                  Colv = FALSE,
+                  Rowv = FALSE,
+                  trace="none",
+                  RowSideColors = colores[clusters_co_wide$campaign],
+                  col = viridis(1000))
+dev.off()
+
+pdf(file="results/heatmaps/clusters_heatmap_ra.pdf")
+gplots::heatmap.2(as.matrix(clusters_ra_wide[,11:ncol(clusters_co_wide)]),
+                  main = "Clusters - relative abundance data",
+                  xlab = NULL,
+                  dendrogram = "none",
+                  Colv = FALSE,
+                  Rowv = FALSE,
+                  trace="none",
+                  RowSideColors = colores[clusters_co_wide$campaign],
+                  col = viridis(1000))
+dev.off()
+
 # ---------------------------------------
 # Ordination analysis - NMDS
 # ---------------------------------------
 
-# to wide format
-clusters_co_wide <- clusters_count %>%
-  pivot_wider(names_from = taxonomy, values_from = count)
-
-clusters_ra_wide <- clusters_ra %>%
-  pivot_wider(names_from = taxonomy, values_from = rel_abun)
 
 # define function to plot NMDS results
 # coloring samples with different variables

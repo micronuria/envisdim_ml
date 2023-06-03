@@ -9,10 +9,9 @@
 ###########################################
 
 #---------------------------------------------
-# Description:
-# This script:
+# Description. This script:
 #
-#  1 - reads the raw ASVs calculated with DADA2, corrects
+#  1 - Reads the raw ASVs calculated with DADA2, corrects
 #      sample names from Dimension campaign and removes a problematic
 #      sample from Envision campaign for which the sequencing did not work. 
 #
@@ -37,7 +36,7 @@ library(tidyverse)
 # 1 - Correct sample names of Dimension project to meet metadata and Envision
 # sample formats.
 # 2 - Delete ENVISION sample with sequencing problems:
-# ENVProk141 - Ocean, August, Day 7, depth 1
+#       ENVProk141 - Ocean, August, Day 7, depth 1
 # 3 - Table to long format
 # 4 - Load taxonomy
 
