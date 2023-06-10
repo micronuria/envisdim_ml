@@ -52,7 +52,7 @@ rsconnect/
 
 
 # My additions 
-raw_data/
-processed_data/
-documentation/
-results/
+raw_data/*
+processed_data/*
+documentation/*
+results/*

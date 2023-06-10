@@ -1,41 +1,10 @@
----
-title: "4 ASVs calculation"
-subtitle: "TFM. PEC2 - Deliverable 4"
-author: "Nuria Fernández González"
-date: '`r format(Sys.Date(),"%d/%m/%Y")`'
-output:
-  pdf_document:
-    number_sections: true
-    toc: yes
-    toc_depth: 3
-  html_document:
-    number_sections: true
-    toc: yes
-    toc_depth: 3
-    toc_float: yes
-toc-title: "Index"
-bibliography: bibliography_dada2.bib
-lang: en 
----
+
+# ASVs calculation
+
+Calculation of Amplicon Sequence Variants (ASVs) with DADA2 in R.
 
 
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(echo = TRUE, eval = FALSE, python.reticulate = FALSE)
-```
-
-***
-
-Calculation of Amplicon Sequence Variants (ASVs) [@Callahan2016-ih] with DADA2 in R.
-
-
-Versions:
-
-* Linux: Ubuntu 20.04.4 LTS
-* R: 4.2.0
-* Python: 3.8.10
-
-
-# DADA2 installation
+## DADA2 installation
 
 First, we create a conda environment to install and R version compatible with latest BiocManager and install both.
 ```{bash}
@@ -52,11 +21,11 @@ BiocManager::install("dada2", version = "3.16")
 ```
 
 
-# ASVs calculation
+## ASVs calculation
 
 Next, we can calculate the ASVs using the preprocessed sequences.
+Script based on my coworker Diego Jimenez's code and on [DADA2 tutorial](https://benjjneb.github.io/dada2/index.html)).
 
-`Rscript_envisdim_DADA2.R` (Script based on my coworker Diego Jimenez's code and on [DADA2 tutorial](https://benjjneb.github.io/dada2/index.html)).
 ```{r}
 library(dada2)
 
@@ -150,7 +119,3 @@ print("From this point, you could export your tables and work with them with VEG
 
 getwd()
 ```
-
-
-# Bibliography
-

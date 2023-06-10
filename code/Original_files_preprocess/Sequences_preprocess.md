@@ -1,53 +1,24 @@
----
-title: "Sequences pre-processing"
-subtitle: "TFM. PEC2 - Deliverable 3"
-author: "Nuria Fernández González"
-date: '`r format(Sys.Date(),"%d/%m/%Y")`'
-output:
-  pdf_document:
-    number_sections: true
-    toc: yes
-    toc_depth: 3
-  html_document:
-    number_sections: true
-    toc: yes
-    toc_depth: 3
-    toc_float: yes
-toc-title: "Index"
-bibliography: bibliography_sequences_preprocessing.bib
-lang: en 
----
 
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(echo = TRUE, eval = FALSE, python.reticulate = FALSE)
-```
+# Sequences pre-processing
 
-***
 Sequences pre-processing prior to ASVs calculation.
 
-Versions:
 
-* Linux: Ubuntu 20.04.4 LTS
-* R: 4.1.3
-* Python: 3.8.10
-* TagCleaner: 0.16
-* Mothur:1.36
-* Moira: 1.3.2
-
-
-# Remove primers
+## Remove primers
 
 Decompress fastq.gz files of Envision project, Dimension is not compressed.
+
 ```{bash}
 $ cd analysis/intermediate/raw_16_fastq
 $ gzip -d *.gz
 ```
 
-## Check primers presence in raw sequences
+### Check primers presence in raw sequences
 
-Use *TagCleaner* to check primers in sequences [@Schmieder2010].
+Use *TagCleaner* to check primers in sequences.
 
 Create two files containing all R1 and R2 fastq files respectively:
+
 ```{bash}
 $ cat *R1*.fastq > envdimR1.fastq
 $ cat *R2*.fastq > envdimR2.fastq
@@ -55,17 +26,19 @@ $ cat *R2*.fastq > envdimR2.fastq
 
 Move concatenated fastq files to folder containing `tagcleaner.py`
 and change to that folder:
+
 ```{bash}
 $ mv envdimR*.fastq ../../tagcleaner/.
 $ cd ../../tagcleaner/
 ```
 
-In both Envision and Dimension, primers are the same [@Parada2015]:
+In both Envision and Dimension, primers are the same:
 
 * 515F-Y: 5'-GTGYCAGCMGCCGCGGTAA-3'
 * 926R: 5'-CCGYCAATTYMTTTRAGTTT-3' 
 
 Predict tag sequences:
+
 ```{bash}
 $ perl tagcleaner.pl -64 -predict -fastq envdimR1.fastq 
 
@@ -79,14 +52,15 @@ tag5    CCGTCAATTNNNNNNNNNNNNNNN        24      97.86
 tag3    TGAGCCGCCTTCGCCACTGGTGTTCCTCCAAATATCTACGAATTTCACCTCTACACTTGGAATT        64      10.50
 ```
 
-Once primers presence is confirmed, remove concatenated files
+Once primers presence is confirmed, remove concatenated files:
+
 ```{bash}
 $ rm -r envdimR*.fastq
 ```
 
-## Trim primers
+### Trim primers
 
-To trim primers from fastq sequences I use Mothur [@Schloss2009]. 
+To trim primers from fastq sequences, use Mothur. 
 
 To use Mothur, sequences must be transformed from fastq file to fasta+qual files:
 
@@ -104,6 +78,7 @@ mothur > quit()
 ```
 
 Move files, putting fasta and qual files of each type of read into separated folders.
+
 ```{bash}
 $ cd ..
 $ mv raw_16_fastq/trimming.files .
@@ -117,16 +92,16 @@ $ mv raw_16_fastq/*R2.fasta fasta_qual_R2/.
 $ mv raw_16_fastq/*R2.qual fasta_qual_R2/.
 ```
 
-Create two text files with the primers to remove
-reate a text file with the primers information:
+Create a text file with the primers information:
 
 `primer_fwd.txt` that contains: forward GTGYCAGCMGCCGCGGTAA
 
 `primer_rev.txt` that contains: forward CCGYCAATTYMTTTRAGTTT
 
-After creating the needed directories, run a bash loop to trim forward primer, and then repeat with the reverse. Do not forget to load conda environment for Mothur prior to run the scripts.
+After creating the needed directories, run a bash loop to trim forward primer, and then repeat with the reverse. 
+
 Forward primer:
-`trim_fwd_primer_mothur.sh`
+
 ```{bash}
 #!/bin/bash
 
@@ -160,7 +135,7 @@ mv $FQFILES/mothur.*.logfile /data/mcm/nfernandez/envisdim/analysis/intermediate
 ```
 
 Reverse primer:
-`trim_rev_primer_mothur.sh`
+
 ```{bash}
 #!/bin/bash
 
@@ -194,7 +169,6 @@ rm $FQFILES/scrap.count_table
 mv $FQFILES/mothur.*.logfile /data/mcm/nfernandez/envisdim/analysis/intermediate/mothur_logfiles/. 
 ```
 
-
 Check that primers have been removed with TagCleaner:
 
 * 515F-Y: 5'-GTGYCAGCMGCCGCGGTAA-3'
@@ -220,13 +194,13 @@ tag3    NNNNNNNNNNNNNNN 15      36.00
 ```
 
 
-# QC filtering and merge
+## QC filtering and merge
 
-To remove sequencing errors and merge paired reads we are using Moira [@PuenteSnchez2015]
+To remove sequencing errors and merge paired reads we are using Moira 
 
-## Prepare files to work with MOIRA 
+### Prepare files to work with MOIRA 
 
-### Create an accnoss file
+#### Create an accnoss file
 
 We need to create, for each pair of fasta files, a list with the name of the paired sequences in which primers have been successfully removed in both R1 and R2.
 
@@ -239,7 +213,8 @@ sed -i 's/_R1\.trim\.fasta//g' list_samples.txt
 ```
 
 And then use a python script to create those lists, which are called accnos files:
-The script `make_accnoss.py` is based in code created by one of my teamates, Fernando Puente-Sánchez. 
+The script `make_accnoss.py` is based in code created by o, Fernando Puente-Sánchez. 
+
 ```{python}
 import os
 os.getcwd()
@@ -271,11 +246,6 @@ for x, sample in enumerate(lista):
 
 ```
 
-Call
-```{bash}
-$ python3 make_accnoss.py
-```
-
 An example of the accnos file is:
 ```{bash}
 $ head DIMprok19.trim.common.accnos 
@@ -291,11 +261,12 @@ M02696_99_000000000-ALTJF_1_1112_18980_12464
 M02696_99_000000000-ALTJF_1_2112_21703_18395
 ```
 
-### Pick good sequences
+#### Pick good sequences
 
 Next, we need to select the trimmed sequence pairs included in the accnos files.
 For that, we can use the Mothur `get.seqs` function in a Bash script to loop over all files.
-After creating the needed directories, run the script `pick_seqs_mothur.sh`
+After creating the needed directories, run the script:
+
 ```{bash}
 #!/bin/bash
 
@@ -327,11 +298,11 @@ mv $LOGS/*.logfile $LOGSDIR/.
 ```
 
 
-### Translate sequences format from fasta to fastq
+#### Translate sequences format from fasta to fastq
 
 Although Moira can use both fasta and fastq formats, from now on, we are going to use fastq format. 
 We use Mothur function `make.fastq` function to translate the selected sequences back to fastq.
-`make_fastq_for_moira.sh`
+
 ```{bash}
 #!/bin/bash
 
@@ -359,24 +330,24 @@ mv $LOGS/*.logfile $LOGSDIR/.
 ```
 
 
-## Reads QC filter and merge into contigs
+### Reads QC filter and merge into contigs
 
 The next step is to quality-filter reads with Moira, that also builts contigs from the paired-end reads.
 For it Moira applies a Poisson binomial distribution to estimate sequencing errors.
 
 To run Moira, we have to joing all selected sequences in a single file depending their sense.
+
 ```{bash}
 $ cat *_R1*.fastq > all_pick_R1.fastq
 $ cat *_R2*.fastq > all_pick_R2.fastq
 ```
 
-
 With those files, we can launch Moira after creating the corresponding folders.
+
 ```{bash}
 nohup moira.py --forward_fastq=all_pick_R1.fastq --reverse_fastq=all_pick_R2.fastq --paired --output_format fastq --consensus_qscore posterior --qscore_cap 0 --collapse TRUE 
  --ambigs disallow --processors 12 --output_prefix moira_primerfree_ > moira.primerfree.logfile &
 ```
-
 
 Moira output consist on unique sequences, therefore to properly calculate ASVs and their count table, we have to make fastq files with the corresponding abundances of each unique sequence.
 To achieve it, first we make a file of groups of identical sequences using the information we already have in the accnos files:
@@ -413,7 +384,8 @@ M02696_99_000000000-ALTJF_1_1116_16928_20985	DIMprok10
 
 
 Now, we can use that information to build the required fastq.
-`Subsampling.moira.nfg.py` Script based on my teamates code (Diego Jimenez and Fernando Puente-Sanchez).
+Script based on Diego Jimenez and Fernando Puente-Sanchez code.
+
 ```{python}
 # Import Operative Systems tools
 import os
@@ -468,4 +440,3 @@ for sample_id in output_files:
 
 ```
 
-# Bibliography

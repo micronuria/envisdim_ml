@@ -9,8 +9,10 @@ Code developed during the TFM can be found in the code folder that contains:
     - sra_explorer_download.sh
 - metadata files preparation
     - Metadata_files_preprocess.md
-- Raw sequences preprocess
-- ASVs calculation
+- Raw sequences preprocess:
+    - Sequences_preprocess.md
+- ASVs calculation:
+    - ASVs_calculation.md
 
 #### Chlorophyll_groups
 - PCAs of environmental variables: 
