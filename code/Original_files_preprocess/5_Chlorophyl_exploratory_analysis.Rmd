@@ -1,0 +1,392 @@
+---
+title: "Chlorophyll Exploratory Analysis"
+subtitle: "TFM. PEC2 - Deliverable 5"
+author: "Nuria Fernández González"
+date: '`r format(Sys.Date(),"%d/%m/%Y")`'
+output:
+  pdf_document:
+    number_sections: true
+    toc: yes
+    toc_depth: 3
+  html_document:
+    number_sections: true
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+toc-title: "Index"
+lang: en 
+---
+
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, python.reticulate = FALSE)
+```
+
+***
+
+To help collaborators, I explored the total chlorophyll concentration data and other environmental variables of interest to determine the coastal blooms.
+
+*Note:* no graphs have been included in this document as it is intended to show the code not the biological results (that will be included in the final memory) and to keep it short.
+
+
+Versions:
+
+* Linux: Ubuntu 20.04.4 LTS
+* R: 4.1.3
+
+
+# PCA Analysis
+
+As a first approach, I searched for patterns in samples using only environmental variables with some conections with coastal blooms. To do that, I developed PCA analyses for Envision and Dimension projects. 
+ 
+```{r}
+#######################################################
+
+# PCAs to explore metadata of Envision 16S samples
+
+#######################################################
+
+# Metadata preparation
+# Load Metadata
+metadata <- read.table("/data/mcm/nfernandez/envisdim/analysis/intermediate/metadata_corrected_16S_table_env.tsv", 
+                       sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+
+metadata$month <- as.factor(metadata$month)
+metadata$st <- as.factor(metadata$st)
+
+rownames(metadata) <- metadata$sample_name
+
+# create a new factor to group depths
+source("/data/mcm/nfernandez/envisdim/analysis/scripts/recode.r")
+metadata$depth <- recode(var = metadata$prof_label, "c('P1', 'P2') = 'surface';
+                                                   c('P3', 'P4') = 'intermediate'; 
+                                                   c('P4', 'P5', 'P6', 'P7') = 'deep'",
+                              as.factor = TRUE, levels = c('surface', 'intermediate', 'deep'))
+
+# PCA with variables related to blooms without NAs
+#######################################################
+mdatabl <- metadata[,c("sample_name","month","day","st","depth","prof",
+                       "chlaTotal",
+                       "AB","AFSyne","AFProc","AFsp","AFlp",
+                       "BB","BFSyne","BFProc","BBsp","BBlp")]
+
+# Remove rows with NAs
+mdatabl <- mdatabl[complete.cases(mdatabl),]
+
+# PCA metadata
+library(vegan)
+
+# 'species' = columns, 'sites'=rows
+PCA <- rda(mdatabl[7:17], scale=TRUE)
+summary(PCA)
+
+# variables loadings (correlations to PCs)
+loadings <- scores(PCA, display = 'species', scaling = 0)
+# correlations of variables to PC1
+sort(abs(loadings[,1]), decreasing = TRUE)
+# correlations of variables to PC2
+sort(abs(loadings[,2]), decreasing = TRUE)
+
+# Plot PCA according to sampling month
+colores3 = c("#29a709", "red","blue")
+ordiplot(PCA, display = 'sites', type = 'n')
+points(PCA, pch = 16, cex = 1.3,
+       col =colores3[as.numeric(mdatabl$month)])
+orditorp(PCA, display = 'sites')
+legend("topright",legend = as.character(levels(mdatabl$month)),
+       pch = 16, cex = 1.2, col=colores3)
+
+# Plot PCA according to sampling depth
+colores3 = c("#0f8135", "#0099ff","#6303bd")
+ordiplot(PCA, display = 'sites', type = 'n')
+orditorp(PCA, display = 'sites')
+points(PCA, pch = 16, cex = 1.3,
+       col =colores3[as.numeric(mdatabl$depth)])
+legend("topright",legend = as.character(levels(mdatabl$depth)),
+       pch = 16, cex = 1.2, col=colores3)
+
+
+#######################################################
+
+# PCAs to explore metadata of DIMENSION 16S samples
+
+#######################################################
+
+# Load environmental metadata
+metadim <- read.table("/data/mcm/nfernandez/envisdim/analysis/intermediate/metadata_corrected_dim.tsv", 
+                       sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+metadim$year <- as.factor(metadim$year)
+metadim$month <- as.factor(metadim$month)
+metadim$Upw <- as.factor(metadim$Upw)
+
+# check NAs in numeric variables
+lista <- apply(metadim[7:52],2, function(x) {table(is.na(x))})
+tablaNAs <- do.call(rbind.data.frame, lista)
+names(tablaNAs) <- tolower(names(lista[[5]]))
+tablaNAs['true'][tablaNAs['true'] == 36] <- 0
+rownames(tablaNAs) <- names(lista)
+
+
+# Select variables
+tokeep <- c("sample","year","month","Dat","Dep","Sea","Upw",
+            "Chla.p","Chla.n","Chla.m","PP.p",
+            "PP.n","PP.m","BP","PP.t.h")
+
+metadims <- metadim[,tokeep]
+rownames(metadims) <- metadim$sample
+
+# Remove rows with NAs
+metadims <- metadims[complete.cases(metadims),]
+
+# Calculate PCA
+PCAdim <- rda(metadims[8:15], scale=TRUE)
+summary(PCAdim)
+
+# variables loadings (correlations to PCs)
+loadingsDIM <- scores(PCAdim, display = 'species', scaling = 0)
+# correlations of variables to PC1
+sort(abs(loadingsDIM[,1]), decreasing = TRUE)
+# correlations of variables to PC2
+sort(abs(loadingsDIM[,2]), decreasing = TRUE)
+
+# Plots
+library(RClorBrewer)
+
+# Plot PCA according to sampling month
+colores = c(brewer.pal(9, "Set1"), brewer.pal(2, "Set2"))
+ordiplot(PCAdim, display = 'sites', type = 'n')
+text(PCAdim)
+points(PCAdim, pch = 16, cex = 1.4,
+       col =colores[as.numeric(metadims$month)])
+legend("left",legend = as.character(levels(metadims$month)),
+       pch = 16, cex = 1.4, col=colores)
+
+# Plot PCA according to upwelling events
+colores2 = c("red","blue")
+ordiplot(PCAdim, display = 'sites', type = 'n')
+text(PCAdim)
+points(PCAdim, pch = 16, cex = 1.3,
+       col =colores2[as.numeric(metadims$Upw)])
+legend("left",legend = as.character(levels(metadims$Upw)),
+       pch = 16, cex = 1.2, col=colores2)
+
+# Plot PCA according to season
+colores4 = c("blue","green","red","#f78215")
+ordiplot(PCAdim, display = 'sites', type = 'n')
+text(PCAdim)
+points(PCAdim, pch = 16, cex = 1.3,
+       col =colores4[as.numeric(metadims$Sea)])
+legend("left",legend = as.character(levels(metadims$Sea)),
+       pch = 16, cex = 1.2, col=colores4)
+
+# Plot PCA according to sampling depth
+colores2 = c("red","blue")
+ordiplot(PCAdim, display = 'sites', type = 'n')
+text(PCAdim)
+points(PCAdim, pch = 16, cex = 1.3,
+       col =colores2[as.numeric(as.factor(metadims$Dep))])
+legend("left",legend = as.character(unique(metadims$Dep)),
+       pch = 16, cex = 1.2, col=colores2)
+
+```
+
+
+
+# Division of samples according to Total Chlorophyl levels
+
+In this section I explored the total chlorophyll concentration data. In particular, the sample frequency observed on the different months, seasons and depths when using different percentiles to divide the data.
+
+First, I explored the division of data based on 50 and 75 percentiles.
+
+```{r}
+# Divide chlorophyl data into groups based on different percentils
+# to find which samples belong to blooms and which do not.
+
+# Load metadata of Envision campaign
+rawenv <- read.table("../intermediate/metadata_corrected_16S_table_env.tsv", 
+                     sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+rownames(rawenv) <- rawenv$sample_name
+# Load metadata of Dimension campaign
+rawdim <- read.table("../intermediate/metadata_corrected_dim.tsv",
+                     sep ="\t", header = TRUE, stringsAsFactors = FALSE)
+rownames(rawdim) <- rawdim$sample
+
+# Separate Envision in the two sations
+envst3 <- subset(rawenv, st == 3)
+envst6 <- subset(rawenv, st == 6)
+
+# Vectors of chlorophyl value for oceanic and coastal stations
+chl_oce <- envst6$chlaTotal
+names(chl_oce) <- rownames(envst6)
+chl_cos <- c(envst3$chlaTotal, rawdim$Chla.t)
+names(chl_cos) <- c(rownames(envst3), rownames(rawdim))
+
+# get statistics
+sum_oce <- summary(chl_oce)
+sum_cos <- summary(chl_cos)
+
+# Divisions based on the 50 percentile 
+bloom_oce_50 <- chl_oce[chl_oce >= sum_oce[3]]
+nobloom_oce_50 <- chl_oce[chl_oce < sum_oce[3]]
+
+bloom_cos_50 <- chl_cos[chl_cos >= sum_cos[3]]
+nobloom_cos_50 <- chl_cos[chl_cos < sum_cos[3]]
+
+# Divisions based on the 75 percentile
+bloom_oce_75 <- chl_oce[chl_oce >= sum_oce[5]]
+nobloom_oce_75 <- chl_oce[chl_oce < sum_oce[5]]
+
+bloom_cos_75 <- chl_cos[chl_cos >= sum_cos[5]]
+nobloom_cos_75 <- chl_cos[chl_cos < sum_cos[5]]
+
+valores <- list(bloom_cos_50, bloom_cos_75, nobloom_cos_50, nobloom_cos_75,
+                bloom_oce_50, bloom_oce_75, nobloom_oce_50, nobloom_oce_75)
+
+names(valores)<- c("bl_C_50","bl_C_75","Nbl.C.50","Nbl_C_75",
+                   "bl_O_50","bl_O_75", "Nbl_O_50", "Nbl_O_75")
+
+```
+
+Check sample frequengy on groups:
+
+```{r}
+barplot(unlist(lapply(valores,length)), main = "Number of samples on each group",
+        ylab = "frequency", las = 2)
+```
+
+Values of total Chrlorophyl on each group:
+
+```{r}
+boxplot(valores, ylab = "Total Chlorophyl", las = 2)
+```
+
+## Details on the 75 percentile groups
+
+Requested by my collaborators, I checked the sample distributions through months and depths for sample groups according to 75 percentile.
+
+### Ocean station
+
+Subset data tables and create plots.
+```{r}
+# Selec
+df_bloom_oce_75 <- envst6[envst6$sample_name %in% names(bloom_oce_75),]
+df_nobloom_oce_75 <- envst6[envst6$sample_name %in% names(nobloom_oce_75),]
+```
+
+*Month*
+
+```{r}
+par(mfrow=c(1,2))
+barplot(table(df_bloom_oce_75$month), ylab = "frequency", main="bloom", ylim = c(0, 20))
+barplot(table(df_nobloom_oce_75$month), ylab = "frequency", main="no bloom", ylim = c(0, 20))
+```
+
+*Depth*
+
+```{r}
+par(mfrow=c(1,2))
+hist(df_bloom_oce_75$prof, xlab = "Depth (m)", ylab = "frequency", main = "bloom", ylim = c(0,12))
+hist(df_nobloom_oce_75$prof,  xlab = "Depth (m)", ylab = "frequency", main = "no bloom",  ylim = c(0,12))
+```
+
+
+### Costal station - ENVISION
+
+Subset data tables and create plots.
+```{r}
+df_bloom_cosenv_75 <- envst3[envst3$sample_name %in% names(bloom_cos_75),]
+df_nobloom_cosenv_75 <- envst3[envst3$sample_name %in% names(nobloom_cos_75),]
+```
+
+*Month*
+
+```{r}
+par(mfrow=c(1,2))
+barplot(table(df_bloom_cosenv_75$month), ylab = "frequency", main="bloom", ylim = c(0, 20))
+barplot(table(df_nobloom_cosenv_75$month), ylab = "frequency", main="no bloom", ylim = c(0, 20))
+```
+
+*Depth*
+
+```{r}
+par(mfrow=c(1,2))
+hist(df_bloom_cosenv_75$prof, xlab = "Depth (m)", ylab = "frequency", main = "bloom", ylim = c(0,12))
+hist(df_nobloom_cosenv_75$prof,  xlab = "Depth (m)", ylab = "frequency", main = "no bloom",  ylim = c(0,12))
+```
+
+### Costal - DIMENSION
+
+Subset data tables and create plots.
+
+```{r}
+df_bloom_cosdim_75 <- rawdim[rawdim$sample %in% names(bloom_cos_75),]
+df_nobloom_cosdim_75 <- rawdim[rawdim$sample %in% names(nobloom_cos_75),]
+```
+
+
+*Month*
+
+```{r}
+par(mfrow=c(1,2))
+barplot(table(df_bloom_cosdim_75$month), ylab = "frequency", main="bloom", ylim = c(0, 5), las =2)
+barplot(table(df_nobloom_cosdim_75$month), ylab = "frequency", main="no bloom", ylim = c(0, 5), las =2 )
+```
+
+*Season*
+
+```{r}
+par(mfrow=c(1,2))
+barplot(table(df_bloom_cosdim_75$Sea), ylab = "frequency", main="bloom", ylim = c(0, 10), las =2)
+barplot(table(df_nobloom_cosdim_75$Sea), ylab = "frequency", main="no bloom", ylim = c(0, 10), las =2 )
+```
+
+*Depth*
+
+```{r}
+par(mfrow=c(1,2))
+hist(df_bloom_cosdim_75$Dep, xlab = "Depth (m)", ylab = "frequency", main = "bloom", ylim = c(0,16))
+hist(df_nobloom_cosdim_75$Dep,  xlab = "Depth (m)", ylab = "frequency", main = "no bloom",  ylim = c(0,16))
+```
+
+## 90 percentile for oceanic station
+
+I further explored the samples frequency using the 90 percentile for the oceanic station.
+
+```{r}
+# get the 90 percentile of chlorophyl concentrations on the oceanic station
+oce90 <-quantile(chl_oce, probs = c(0.90))
+
+# Divisions based on the 90 percentile 
+bloom_oce_90 <- chl_oce[chl_oce >= oce90]
+nobloom_oce_90 <- chl_oce[chl_oce < oce90]
+
+valores <- list(bloom_oce_90, nobloom_oce_90)
+names(valores)<- c("bl_C_90", "Nbl_C_90")
+
+barplot(unlist(lapply(valores,length)), main = "Number of samples on each group",
+        ylab = "frequency", las = 2)
+```
+
+
+Subset data tables and create plots.
+```{r}
+df_bloom_oce_90 <- envst6[envst6$sample_name %in% names(bloom_oce_90),]
+df_nobloom_oce_90 <- envst6[envst6$sample_name %in% names(nobloom_oce_90),]
+```
+
+*Month*
+
+```{r}
+par(mfrow=c(1,2))
+barplot(table(df_bloom_oce_90$month), ylab = "frequency", main="bloom", ylim = c(0, 25))
+barplot(table(df_nobloom_oce_90$month), ylab = "frequency", main="no bloom", ylim = c(0, 25))
+```
+
+*Depth*
+
+```{r}
+par(mfrow=c(1,2))
+hist(df_bloom_oce_90$prof, xlab = "Depth (m)", ylab = "frequency", main = "bloom", ylim = c(0,15))
+hist(df_nobloom_oce_90$prof,  xlab = "Depth (m)", ylab = "frequency", main = "no bloom",  ylim = c(0,15))
+```
+
