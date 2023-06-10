@@ -4,15 +4,15 @@ subtitle: "TFM. PEC2 - Deliverable 1"
 author: "Nuria Fernández González"
 date: '`r format(Sys.Date(),"%d/%m/%Y")`'
 output:
-  pdf_document:
-    number_sections: true
-    toc: yes
-    toc_depth: 2
   html_document:
     number_sections: true
     toc: yes
     toc_depth: 2
     toc_float: yes
+  pdf_document:
+    number_sections: true
+    toc: yes
+    toc_depth: 2
 toc-title: "Index"
 lang: es
 ---
