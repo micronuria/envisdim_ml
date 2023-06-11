@@ -12,7 +12,7 @@
 #---------------------------------------------
 # Description. This script:
 # 1 - Groups ASVs at Genus level making clusters,
-#     reducing biological features from 1,193 to 688.
+#     reducing biological features.
 #     The best taxonomic classification for each cluster
 #     is kept even for clusters where genus was not 
 #     determined.
@@ -119,9 +119,9 @@ clusters_ra_wide %>%
 # Data distribution
 # -------------------------------
 # Boxplot count data
-pdf(file="results/boxplots/clusters_boxplot_counts.pdf")
+pdf(file="results/boxplots/clusters_boxplot_counts2.pdf")
 clusters_count %>%
-  ggplot(aes( y=count,x=taxonomy)) +
+  ggplot(aes(y=count,x=reorder(taxonomy, count, decreasing = TRUE))) +
   geom_boxplot(outlier.size = 0.4) +
   xlab("Cluster") +
   theme(axis.text.x = element_blank()) +
@@ -131,7 +131,7 @@ dev.off()
 # Boxplot relative abundance data
 pdf(file="results/boxplots/clusters_boxplot_ra.pdf")
 clusters_ra %>%
-  ggplot(aes(y=rel_abun, x=taxonomy)) +
+  ggplot(aes(y=rel_abun, x=reorder(taxonomy, rel_abun, decreasing = TRUE))) +
   geom_boxplot(outlier.size = 0.4) +
   xlab("Cluster") +
   theme(axis.text.x = element_blank()) +

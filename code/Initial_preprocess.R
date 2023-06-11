@@ -35,7 +35,7 @@ library(tidyverse)
 
 # 1 - Correct sample names of Dimension project to meet metadata and Envision
 # sample formats.
-# 2 - Delete ENVISION sample with sequencing problems:
+# 2 - Delete problematic ENVISION sample:
 #       ENVProk141 - Ocean, August, Day 7, depth 1
 # 3 - Table to long format
 # 4 - Load taxonomy
