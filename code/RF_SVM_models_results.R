@@ -3,14 +3,14 @@
 
 ###########################################
 #
-# RF model comparisons
+# RF and SVM model comparisons
 #
 ###########################################
 
 #---------------------------------------------
 # Description: this script gathers together
 # the validation and performace metrics
-# of the different models
+# of the RF and SVM models
 # developed using 100 data splits
 #---------------------------------------------
 
@@ -98,13 +98,17 @@ Reduce(full_join,perf_multi) %>%
   facet_wrap(~model)
 
 
-###################
+# Adding SVM model results to compare
+#####################################
 
+asvs_svm1_k5 <- readRDS("results/models/asvs_svm1_multi100_k5_10.RDS")
 
+perf_multi[[7]] <- get_performance("asvs-SVM_k5",asvs_svm1_k5)
 
-
-
-
-
-
+Reduce(full_join,perf_multi) %>%
+  pivot_longer(!model, names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x=variable, y=value, fill=model)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90)) #+
+facet_wrap(~model)
 
