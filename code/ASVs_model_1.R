@@ -53,21 +53,27 @@ rm("asvs_co","asvs_co_wide")
 ############################################
 
 # Preprocess features by removing near-zero variance 
-# and highly correlated features, but not negatively correlated features
-# for interpretability
+# and highly correlated features
 
 # randomize data row-wise (not really needed)
 asvs_ra_wide <- asvs_ra_wide[sample(nrow(asvs_ra_wide)),]
 
 asvs_prep <- asvs_ra_wide %>% 
   select(-sample, -gr_event) %>%
+  mutate(st = as.factor(st),
+         year = as.factor(year),
+         month = as.factor(month),
+         season = as.factor(season),
+         depth_lev = as.factor(depth_lev)) %>%
   mikropml::preprocess_data(outcome_colname = "event",
                   method = c("center","scale"),
+                  to_numeric = FALSE,
                   collapse_corr_feats = TRUE, 
-                  group_neg_corr = FALSE,    
+                  group_neg_corr = TRUE,    
                   remove_var='nzv',          
                   prefilter_threshold = -1) # do not filter by prevalence
 
+# check number of removed features
 length(asvs_prep$removed_feats)
 #[1] 184
 
@@ -75,16 +81,19 @@ length(asvs_prep$removed_feats)
 asvs <- asvs_prep$dat_transformed
 
 # Boxplot preprocessed data
-pdf(file="results/boxplots/asvs_boxplot_preprocessed_1.pdf")
+pdf(file="results/boxplots/asvs_boxplot_preprocessed_mod1.pdf")
 asvs %>%
-  pivot_longer(-event, names_to = "feature", values_to = "datos") %>%
-  ggplot(aes(y=datos, x=feature)) +
+  pivot_longer(-event, names_to = "feature", values_to = "value") %>%
+  ggplot(aes(y=value, x=feature)) +
   geom_boxplot(outlier.size = 0.4) +
   theme(axis.text.x = element_blank())
 dev.off()
 
+# save list of removed features
+write.csv2(asvs_prep$removed_feats, file = "results/asvs_features_removed_mod1.csv")
+
 ##########################################################
-# Data split and hyperparameters definition
+# Data split 
 ##########################################################
 # Create balanced split of data - ensure samples from 
 # both events and campaigns are present in train and test data
@@ -93,7 +102,7 @@ train_part <- caret::createDataPartition(
   times = 100, 
   p = 0.8)
 
-# split transfomed data
+# Get the first split for the initial test
 train_indices <- train_part[[1]]
 
 # Check train data distribution among groups
@@ -115,23 +124,21 @@ lapply(test_part, function(x, y) table(y[x]), y = asvs_ra_wide$event)
 # bloom normal 
 # 6     27 
 
-# define hyperparameters to explore
+
+###################################################
+# Model training - single split - inital test
+##################################################
+
+# check default hyperparameters
 get_hyperparams_list(asvs,"rf")
 # $mtry
 # [1] 16 32 64
 
-tune_grid <- list(mtry = c(8,16,32,48,64))
-
-###################################################
-# Model training - single split
-##################################################
-
 
 # Model train
-# single data split with 5 cross-validation X 100
-
+# single data split with 5 kfold cross-validation X 100
 doFuture::registerDoFuture()
-future::plan(future::multicore, workers = 100)
+future::plan(future::multisession, workers = 10)
 
 tic()
 results_rf1 <- run_ml(asvs,
@@ -140,53 +147,41 @@ results_rf1 <- run_ml(asvs,
          training_frac = train_indices,
          kfold = 5,
          cv_times = 100,
-         hyperparameters = tune_grid,
          find_feature_importance = FALSE,
          seed = 20210401)
 toc()
 
-saveRDS(results_rf1, file = "results/models/asvs_rf1.RDS")
-
 future::plan(future::sequential)
+
+# Check mtry evaluation
+performance <- get_hp_performance(results_rf1$trained_model)
+plot_hp_performance(performance$dat, mtry, AUC)
+
+
+# expand grid search for mtry
+tune_grid <- list(mtry = c(8,16,32,48,64))
+
+# train model again with expanded grid
+doFuture::registerDoFuture()
+future::plan(future::multisession, workers = 10)
+
+tic()
+results_rf1 <- run_ml(asvs,
+                      method = "rf",
+                      outcome_colname = "event",
+                      training_frac = train_indices,
+                      kfold = 5,
+                      cv_times = 100,
+                      hyperparameters = tune_grid,
+                      find_feature_importance = FALSE,
+                      seed = 20210401)
+toc()
+
 
 # Model performance
 performance <- get_hp_performance(results_rf1$trained_model)
 plot_hp_performance(performance$dat, mtry, AUC)
 
-results_rf1$trained_model
-#Random Forest 
-#
-# 133 samples
-#1031 predictors
-#   2 classes: 'bloom', 'normal' 
-#
-#No pre-processing
-#Resampling: Cross-Validated (5 fold, repeated 100 times) 
-#Summary of sample sizes: 106, 107, 106, 107, 106, 106, ... 
-#Resampling results across tuning parameters:
-#
-#  mtry  logLoss    AUC        prAUC      Accuracy   Kappa      F1       
-#   8    0.3446908  0.8742970  0.7109381  0.8514017  0.3668316  0.4826984
-#  16    0.3425114  0.8743238  0.7107516  0.8489088  0.3634849  0.4816698
-#  32    0.3414061  0.8737364  0.7082347  0.8455214  0.3621877  0.4797427
-#  48    0.3411306  0.8729970  0.7076600  0.8439972  0.3613582  0.4853958
-#  64    0.3412128  0.8722926  0.7056209  0.8440085  0.3645412  0.4884509
-#  Sensitivity  Specificity  Pos_Pred_Value  Neg_Pred_Value  Precision  Recall
-#  0.3300       0.9721472    0.7726190       0.8638021       0.7726190  0.3300
-#  0.3340       0.9681515    0.7550529       0.8640720       0.7550529  0.3340
-#  0.3432       0.9618442    0.7260923       0.8649617       0.7260923  0.3432
-#  0.3496       0.9584805    0.7059834       0.8658398       0.7059834  0.3496
-#  0.3548       0.9572944    0.7038733       0.8666420       0.7038733  0.3548
-#  Detection_Rate  Balanced_Accuracy
-#  0.06205413      0.6510736        
-#  0.06280342      0.6510758        
-#  0.06453561      0.6525221        
-#  0.06573789      0.6540403        
-#  0.06671510      0.6560472        
-#
-#
-#AUC was used to select the optimal model using the largest value.
-#The final value used for the model was mtry = 16.
 
 calc_perf_metrics(results_rf1$test_data,
                   results_rf1$trained_model,
@@ -194,8 +189,10 @@ calc_perf_metrics(results_rf1$test_data,
                   twoClassSummary,
                   class_probs = TRUE)
 
-#      ROC      Sens      Spec 
-#0.9043210 0.9629630 0.3333333 
+# ROC      Sens      Spec 
+# 0.9135802 0.9629630 0.5000000
+
+saveRDS(results_rf1, file = "results/models/asvs_rf1.RDS")
 
 
 ################################################
@@ -258,17 +255,9 @@ perf_dfk10 <- future.apply::future_lapply(results_multi_2,
 ) %>%
   dplyr::bind_rows()
 
-mean(perf_dfk5$F1)
-#[1] 0.883613
 
-mean(perf_dfk10$F1)
-#[1] 0.885509
-mean(perf_dfk5$AUC)
-#[1] 0.8695988
-mean(perf_dfk10$AUC)
-#[1] 0.8714506
 
 future::plan(sequential)
  
 
-save(list=ls(), file="processed_data/asvs_model_1.RData")
+

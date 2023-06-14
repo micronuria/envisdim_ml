@@ -54,19 +54,24 @@ rm("clusters_count", "clusters_co_wide")
 ############################################
 
 # Preprocess genus clusters by removing near-zero variance 
-# and highly correlated features, but not negatively correlated features
-# for interpretability
+# and highly correlated features
 
 # randomize data row-wise (not really needed)
 clusters_ra_wide <- clusters_ra_wide[sample(nrow(clusters_ra_wide)),]
 
 clusters_prep <- clusters_ra_wide %>% 
   select(-sample, -gr_event) %>%
+  mutate(st = as.factor(st),
+         year = as.factor(year),
+         month = as.factor(month),
+         season = as.factor(season),
+         depth_lev = as.factor(depth_lev)) %>%
   mikropml::preprocess_data(outcome_colname = "event",
                   method = c("center","scale"),
+                  to_numeric = FALSE,
                   collapse_corr_feats = TRUE, 
-                  group_neg_corr = FALSE,    
-                  remove_var='nzv',          
+                  group_neg_corr = TRUE,    
+                  remove_var= 'nzv',          
                   prefilter_threshold = -1) # do not filter by prevalence
 
 length(clusters_prep$removed_feats)
@@ -76,13 +81,16 @@ length(clusters_prep$removed_feats)
 clusters <- clusters_prep$dat_transformed
 
 # Boxplot preprocessed data
-pdf(file="results/boxplots/clusters_boxplot_preprocessed_1.pdf")
+pdf(file="results/boxplots/clusters_boxplot_preprocessed_mod1.pdf")
 clusters %>%
-  pivot_longer(-event, names_to = "feature", values_to = "datos") %>%
-  ggplot(aes(y=datos, x=feature)) +
+  pivot_longer(-event, names_to = "feature", values_to = "value") %>%
+  ggplot(aes(y=value, x=feature)) +
   geom_boxplot(outlier.size = 0.4) +
   theme(axis.text.x = element_blank())
 dev.off()
+
+# save list of removed features
+write.csv2(clusters_prep$removed_feats, file = "results/clusters_features_removed_mod1.csv")
 
 ##########################################################
 # Data splits - define hyperparameters
@@ -117,14 +125,14 @@ lapply(test_part, function(x, y) table(y[x]), y = clusters_ra_wide$event)
 # 6     27 
 
 
-# define hyperparameters to explore
-# sqrt(p) ~ 18
-tune_grid <- list(mtry = c(3,6,9,18,24,36))
-
-
 ###################################################
 # Model training - single split
 ##################################################
+
+# define hyperparameters to explore
+get_hyperparams_list(clusters, "rf")
+#$mtry
+# [1]  9 18 36
 
 # Model train
 # single data split with 5 cross-validation X 100
@@ -138,25 +146,42 @@ results_rf1 <- run_ml(clusters,
          training_frac = train_indices,
          kfold = 5,
          cv_times = 100,
-         hyperparameters = tune_grid,
          find_feature_importance = FALSE,
          seed = 20210401)
 toc()
 
-saveRDS(results_rf1, file = "results/models/clusters_rf1.RDS")
-
 future::plan(future::sequential)
 
-
-# Check model performance
+# Check model performance to adjust mtry grid search
 performance <- get_hp_performance(results_rf1$trained_model)
 plot_hp_performance(performance$dat, mtry, AUC)
 
-calc_perf_metrics(results_rf1$test_data,
-                  results_rf1$trained_model,
-                  "event",
-                  twoClassSummary,
-                  class_probs = TRUE)
+# Adjust mtry searh and repeat training with a single split
+tune_grid <- list(mtry = c(3,6,9,18,24,36))
+
+doFuture::registerDoFuture()
+future::plan(future::multisession, workers = 10)
+
+tic()
+results_rf1 <- run_ml(clusters,
+                      method = "rf",
+                      outcome_colname = "event",
+                      training_frac = train_indices,
+                      kfold = 5,
+                      cv_times = 100,
+                      hyperparameters = tune_grid,
+                      find_feature_importance = FALSE,
+                      seed = 20210401)
+toc()
+
+future::plan(future::sequential)
+
+# Check model performance again
+performance <- get_hp_performance(results_rf1$trained_model)
+plot_hp_performance(performance$dat, mtry, AUC)
+
+
+saveRDS(results_rf1, file = "results/models/clusters_single_rf1_k5.RDS")
 
 
 ################################################
@@ -180,7 +205,7 @@ results_multi_k5 <- future.apply::future_lapply(train_part, function(train_ind){
   }, future.seed = TRUE)
 toc()
 
-saveRDS(results_multi_k5, file = "results/models/clusters_rf1_multi_k5.RDS")
+saveRDS(results_multi_k5, file = "results/models/clusters_rf1_multi100_k5_100.RDS")
 
 # 10 k-folds
 tic()
@@ -197,8 +222,6 @@ results_multi_k10 <- future.apply::future_lapply(train_part, function(train_ind)
   }, future.seed = TRUE)
 toc()
 
-saveRDS(results_multi_k10, file = "results/models/clusters_rf1_multi_k10.RDS")
-
 future::plan(sequential)
 
-save(list=ls(), file="processed_data/clusters_model_1.RData")
+saveRDS(results_multi_k10, file = "results/models/clusters_rf1_multi100_k10_100.RDS")

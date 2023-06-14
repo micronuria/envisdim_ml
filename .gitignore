@@ -1,6 +1,7 @@
 # History files
 .Rhistory
 .Rapp.history
+*/.Rhistory
 
 # Session Data files
 .RData
@@ -52,7 +53,8 @@ rsconnect/
 
 
 # My additions 
-raw_data/*
-processed_data/*
-documentation/*
-results/*
+raw_data/
+processed_data/
+documentation/
+results/
+old_code/

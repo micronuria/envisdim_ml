@@ -28,6 +28,11 @@ Code developed during the TFM can be found in the code folder that contains:
     - ASVs without filtering exploration: `ASVs_no_filter_exploration.R`
     - ASVs filtering and exploration: `ASVs_filter_exploration.R`
     - Clusters generation and exploratory analyses: `Clusters_grouping_exploration.R`
-  
-    
+- Train, validation with 5 and 10 k-fold repeated cross-validation 
+    and performance test of Random Forest models:
+    - Clusters: `Clusters_model_1.R`
+    - Filtered ASVs: `ASVs_model_1.R`
+    - Unfiltered ASVs: `ASVs_no_filter.R`
+    - Validation and performace metrics: `RF_models_results.R`
+
         

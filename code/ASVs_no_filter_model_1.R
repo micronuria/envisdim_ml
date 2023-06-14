@@ -4,7 +4,7 @@
 
 ###########################################
 #
-# ASVs RF MODEL 2
+# ASVs no filtered RF MODEL 1
 #
 ###########################################
 
@@ -52,12 +52,19 @@ asvs_ra_wide <- asvs_ra_wide[sample(nrow(asvs_ra_wide)),]
 
 asvs_prep <- asvs_ra_wide %>% 
   select(-sample, -gr_event) %>%
+  mutate(st = as.factor(st),
+         year = as.factor(year),
+         month = as.factor(month),
+         season = as.factor(season),
+         depth_lev = as.factor(depth_lev)) %>%
   mikropml::preprocess_data(outcome_colname = "event",
                   method = c("center","scale"),
+                  to_numeric = FALSE,
                   collapse_corr_feats = TRUE, 
-                  group_neg_corr = FALSE,    
+                  group_neg_corr = TRUE,    
                   remove_var='nzv',          
-                  prefilter_threshold = -1) # do not filter by prevalence
+                  prefilter_threshold = - 1) # do not filter by prevalence
+
 
 length(asvs_prep$removed_feats)
 #[1] 3515
