@@ -24,16 +24,23 @@ Code developed during the TFM can be found in the code folder that contains:
 - Data preparation:
     - Preparation of DADA2 results: `DADA2_tables.R`
     - Merge of Envision and Dimension environmental metadata and sample labelling: `Initial_preprocess.R`
+    
 - Data exploration:
     - ASVs without filtering exploration: `ASVs_no_filter_exploration.R`
     - ASVs filtering and exploration: `ASVs_filter_exploration.R`
     - Clusters generation and exploratory analyses: `Clusters_grouping_exploration.R`
+    
 - Train, validation with 5 and 10 k-fold repeated cross-validation 
-    and performance test of Random Forest models:
+    and performance test of Random Forest and SVM models:
     - Random Forest with Clusters: `Clusters_model_1.R`
     - Random Forest with Filtered ASVs: `ASVs_model_1.R`
     - Random Forest with Unfiltered ASVs: `ASVs_no_filter_model_1.R`
     - SVM Radial with Filtered ASVs and validation results: `ASVs_SVM_model.r`
     - Validation and performance metrics for RF and SVM models: `RF_SVM_models_results.R`
+    
+- Synthetic data:
+   - Data generation and models training: `ASVs_synthetic_RF.R`
+   - Performance results of RF model with synthetic data: `ASVs_synthetic_RF_results.R`
+   - Features importance:
 
         
