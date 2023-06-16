@@ -1,7 +1,7 @@
-# Repository of TFM
-## TITLE
+# Code Repository
+## Application of Machine Learning Methods to Predict Phytoplankton Blooms and Determine Microbial Biomarkers Using Marine Microbiomes
 
-Code developed during the TFM can be found in the code folder that contains:
+Code developed during the TFM entitled *Application of Machine Learning Methods to Predict Phytoplankton Blooms and Determine Microbial Biomarkers Using Marine Microbiomes* can be found in the code folder that contains:
 
 #### Original_files_preprocess:
 - Data dowload from SRA:
@@ -14,7 +14,7 @@ Code developed during the TFM can be found in the code folder that contains:
 - ASVs calculation:
     - `ASVs_calculation.md`
 
-#### Chlorophyll_groups
+#### Chlorophyll_groups:
 - PCAs of environmental variables: 
     - `PCA_environmental_data.R`
 - Data distribution according to different percentiles of total chlorophyll concentrations:
@@ -41,6 +41,7 @@ Code developed during the TFM can be found in the code folder that contains:
 - Synthetic data:
    - Data generation and models training: `ASVs_synthetic_RF.R`
    - Performance results of RF model with synthetic data: `ASVs_synthetic_RF_results.R`
-   - Features importance:
+
+- Features importance: `feature_importance.R`
 
         

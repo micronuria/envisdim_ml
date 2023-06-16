@@ -26,6 +26,11 @@ library(mikropml)
 # load models 
 results <- readRDS("results/models/test_syntetic_results.RDS")
 
+# load taxonomy table
+taxa <- read.table("raw_data/asvs_taxonomy.tsv", sep = "\t")
+names(taxa) <- taxa[1,]
+taxa <- taxa[-1,]
+
 ###############################################
 # Define function to extract feature importance
 ###############################################
@@ -52,16 +57,25 @@ var_imp_results %>%
             l_quartile = quantile(value, probs = 0.25),
             u_quartile = quantile(value, probs = 0.75)) %>%
   mutate(feature = fct_reorder(feature, median)) %>%
-  filter(median > 10) %>%
-  
-  ggplot(aes(x = median, y = feature, xmin=l_quartile, xmax=u_quartile)) +
+  filter(median > 20) %>%
+    ggplot(aes(x = median, y = feature, xmin=l_quartile, xmax=u_quartile)) +
     geom_point()+
     geom_linerange()
      
-     
-ggsave("results/features/importance_over10.tiff", width = 5, height = 8)
+# save plot
+ggsave("results/features/importance_over20.tiff", width = 5, height = 8)
 
 
+# get taxonomic assigments of ASVs
+asvs_names <- var_imp_results %>%
+  group_by(feature) %>%
+  summarize(median = median(value),
+            l_quartile = quantile(value, probs = 0.25),
+            u_quartile = quantile(value, probs = 0.75)) %>%
+  mutate(feature = fct_reorder(feature, median)) %>%
+  filter(median > 20) %>%
+  select(feature) %>%
+  filter(str_detect(feature, "^asv"))
 
-
-
+asvs_tax <- subset(taxa, taxa$asv %in% asvs_names$feature)
+write.csv2(asvs_tax, file = "results/features/asvs_important_taxa.csv")
