@@ -37,6 +37,8 @@ names(performance) <- c(names(a[[1]]), names(b[[1]]))
 performance %>% as_tibble() %>%
   pivot_longer(everything(), values_to = "value", names_to = "variable") %>%
   ggplot(aes(x=variable, y=value)) + 
-  geom_boxplot()
+  geom_boxplot() + 
+  ylim(0, 1) + 
+  theme(axis.title = element_text(size = 14))
 
 
